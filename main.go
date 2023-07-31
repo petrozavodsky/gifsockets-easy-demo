@@ -32,24 +32,22 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	case <-done:
 		// Ответ клиенту
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Операция выполнена успешно"))
-
 	case <-ctx.Done():
 		// Обработка разрыва соединения
-		fmt.Println("Соединение разорвано")
-		w.WriteHeader(http.StatusRequestTimeout)
-		w.Write([]byte("Разрыв соединения"))
-
 		duration := time.Since(start)
-		fmt.Println("Время визита:", duration)
-		showResult(r)
+		showResult(duration.String(), r)
 	}
 }
 
-func showResult(r *http.Request) {
+func showResult(duration string, r *http.Request) {
 	queryParams := r.URL.Query()
 
-	message := "GET-параметры запроса: "
+	message := time.Now().Format("2006-01-02 15:04:05")
+	message += " время визита "
+	message += duration
+	if len(queryParams) > 0 {
+		message += " GET-параметры запроса: "
+	}
 	for key, values := range queryParams {
 		message += strings.Join([]string{key, "=>", strings.Join(values, " "), " "}, " ")
 	}
