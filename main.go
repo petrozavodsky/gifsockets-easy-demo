@@ -14,7 +14,7 @@ import (
 
 func main() {
 	http.HandleFunc("/pixel.gif", handleRequest)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":82", nil)
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +24,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
+		fmt.Println("Запрос стартовал")
 		gifHandler(w, r)
 		done <- true
 	}()
