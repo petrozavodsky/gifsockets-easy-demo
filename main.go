@@ -3,18 +3,26 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/joho/godotenv"
 	"image"
 	"image/color"
 	"image/gif"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
 func main() {
-	http.HandleFunc("/pixel.gif", handleRequest)
-	err := http.ListenAndServe(":82", nil)
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Ошибка загрузки .env файла:", err)
+		return
+	}
+	http.HandleFunc(os.Getenv("ROUTE"), handleRequest)
+	err = http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {
 		return
 	}
@@ -40,7 +48,28 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		// Обработка разрыва соединения
 		duration := time.Since(start)
 		showResult(duration.String(), r)
+		webPing(duration.String(), r)
 	}
+}
+
+func webPing(duration string, r *http.Request) {
+	url := os.Getenv("WEB_PING_URL")
+	client := http.Client{Timeout: 5 * time.Second}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Println("Ошибка при выполнении запроса:", err)
+		return
+	}
+	defer func(Body io.ReadCloser) {
+
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println("Вебпинг произошел")
+		}
+	}(resp.Body)
 }
 
 func showResult(duration string, r *http.Request) {
