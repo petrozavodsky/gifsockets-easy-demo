@@ -56,6 +56,7 @@ func webPing(duration string, r *http.Request) {
 	url := os.Getenv("WEB_PING_URL")
 	client := http.Client{Timeout: 5 * time.Second}
 
+	//TODO тут нужно формировать url
 	resp, err := client.Get(url)
 	if err != nil {
 		fmt.Println("Ошибка при выполнении запроса:", err)
