@@ -14,7 +14,10 @@ import (
 
 func main() {
 	http.HandleFunc("/pixel.gif", handleRequest)
-	http.ListenAndServe(":82", nil)
+	err := http.ListenAndServe(":82", nil)
+	if err != nil {
+		return
+	}
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +28,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
 		fmt.Println("Запрос стартовал")
-		gifHandler(w, r)
+		gifHandler(w)
 		done <- true
 	}()
 
@@ -56,7 +59,7 @@ func showResult(duration string, r *http.Request) {
 	fmt.Println(message)
 }
 
-func gifHandler(w http.ResponseWriter, r *http.Request) {
+func gifHandler(w http.ResponseWriter) {
 	const delay = 1000 // Задержка между кадрами в миллисекундах
 
 	for {
@@ -71,7 +74,10 @@ func gifHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "image/gif")
-		w.Write(buffer.Bytes())
+		_, err = w.Write(buffer.Bytes())
+		if err != nil {
+			return
+		}
 
 		time.Sleep(delay * time.Millisecond)
 	}
