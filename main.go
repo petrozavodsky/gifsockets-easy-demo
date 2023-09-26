@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/joho/godotenv"
 	"image"
@@ -29,7 +30,22 @@ func main() {
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
+
+	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
+
+	seconds, err := time.ParseDuration(timeoutStr + "s")
+
+	if err != nil {
+		log.Fatal("Ошибка при преобразовании строки в тип time.Duration:", err)
+		return
+	}
+	duration := time.Duration(seconds.Seconds()) * time.Second
+	fmt.Println(duration)
+
 	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), duration)
+	defer cancel()
+
 	done := make(chan bool)
 	start := time.Now()
 
