@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -64,12 +65,15 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		// Обработка разрыва соединения
 		duration := time.Since(start)
 		showResult(duration.String(), r)
-		webPing(duration.String(), r)
+		webPing(duration, r)
 	}
 }
 
-func webPing(duration string, r *http.Request) {
+func webPing(duration time.Duration, r *http.Request) {
+
+	timeStr := strconv.Itoa(int(duration.Seconds()))
 	url := os.Getenv("WEB_PING_URL")
+	url = strings.Replace(url, "{TIME}", timeStr, -1)
 	client := http.Client{Timeout: 5 * time.Second}
 
 	//TODO тут нужно формировать url
