@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"github.com/joho/godotenv"
 	"image"
 	"image/color"
@@ -20,7 +19,7 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Ошибка загрузки .env файла:", err)
+		log.Panic("Ошибка загрузки .env файла:", err)
 		return
 	}
 	http.HandleFunc(os.Getenv("ROUTE"), handleRequest)
@@ -41,7 +40,6 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	duration := time.Duration(seconds.Seconds()) * time.Second
-	fmt.Println(duration)
 
 	ctx := r.Context()
 	ctx, cancel := context.WithTimeout(r.Context(), duration)
@@ -52,7 +50,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
-		fmt.Println("Запрос стартовал")
+		log.Println("Запрос стартовал")
 		gifHandler(w)
 		done <- true
 	}()
@@ -64,7 +62,6 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	case <-ctx.Done():
 		// Обработка разрыва соединения
 		duration := time.Since(start)
-		showResult(duration.String(), r)
 		webPing(duration, r)
 	}
 }
@@ -75,38 +72,40 @@ func webPing(duration time.Duration, r *http.Request) {
 	url := os.Getenv("WEB_PING_URL")
 	url = strings.Replace(url, "{TIME}", timeStr, -1)
 	client := http.Client{Timeout: 5 * time.Second}
+	args := parseArgs(r)
 
-	//TODO тут нужно формировать url
+	if len(args) > 0 {
+		for key, value := range args {
+			url = strings.Replace(url, key, value, -1)
+		}
+	}
 	resp, err := client.Get(url)
 	if err != nil {
-		fmt.Println("Ошибка при выполнении запроса:", err)
+		log.Fatal("Ошибка при выполнении запроса:", err)
 		return
 	}
 	defer func(Body io.ReadCloser) {
 
 		err := Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 		} else {
-			fmt.Println("Вебпинг произошел")
+			log.Println("Выполнен вебпинг - ", url)
 		}
 	}(resp.Body)
 }
 
-func showResult(duration string, r *http.Request) {
+func parseArgs(r *http.Request) map[string]string {
 	queryParams := r.URL.Query()
+	args := make(map[string]string)
 
-	message := time.Now().Format("2006-01-02 15:04:05")
-	message += " время визита "
-	message += duration
-	if len(queryParams) > 0 {
-		message += " GET-параметры запроса: "
+	if len(queryParams) < 1 {
+		return args
 	}
 	for key, values := range queryParams {
-		message += strings.Join([]string{key, "=>", strings.Join(values, " "), " "}, " ")
+		args[key] = strings.Join(values, " ")
 	}
-
-	fmt.Println(message)
+	return args
 }
 
 func gifHandler(w http.ResponseWriter) {
@@ -119,7 +118,7 @@ func gifHandler(w http.ResponseWriter) {
 		err := gif.Encode(buffer, img, nil)
 
 		if err != nil {
-			log.Println(err)
+			log.Fatal(err)
 			return
 		}
 
