@@ -50,7 +50,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
-		log.Println("Запрос стартовал")
+		log.Println("Инициализация соединения")
 		gifHandler(w)
 		done <- true
 	}()
@@ -81,7 +81,7 @@ func webPing(duration time.Duration, r *http.Request) {
 	}
 	resp, err := client.Get(url)
 	if err != nil {
-		log.Fatal("Ошибка при выполнении запроса:", err)
+		log.Println("Ошибка при выполнении запроса:", err)
 		return
 	}
 	defer func(Body io.ReadCloser) {
