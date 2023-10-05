@@ -31,8 +31,20 @@ func main() {
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 
-	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
+	// Прочитать значение переменной типа bool
+	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
 
+	if err != nil {
+		log.Println("Ошибка чтения переменной VERBOSE")
+		return
+	}
+
+	if w == nil {
+		log.Println("Ошибка http.ResponseWriter")
+		return
+	}
+
+	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
 	seconds, err := time.ParseDuration(timeoutStr + "s")
 
 	if err != nil {
@@ -50,7 +62,9 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
-		log.Println("Инициализация соединения")
+		if verbose {
+			log.Println("Инициализация соединения")
+		}
 		gifHandler(w)
 		done <- true
 	}()
@@ -67,6 +81,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func webPing(duration time.Duration, r *http.Request) {
+
+	// Прочитать значение переменной типа bool
+	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
+
+	if err != nil {
+		log.Println("Ошибка чтения переменной VERBOSE")
+		return
+	}
 
 	timeStr := strconv.Itoa(int(duration.Seconds()))
 	url := os.Getenv("WEB_PING_URL")
@@ -89,7 +111,7 @@ func webPing(duration time.Duration, r *http.Request) {
 		err := Body.Close()
 		if err != nil {
 			log.Fatal(err)
-		} else {
+		} else if verbose {
 			log.Println("Выполнен вебпинг - ", url)
 		}
 	}(resp.Body)
