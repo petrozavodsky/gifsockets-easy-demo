@@ -66,14 +66,15 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
-
 		defer func() {
 			if err := recover(); err != nil {
-				log.Println("Возникла ошибка в gifHandler:", err)
+				if verbose {
+					log.Println("Ошибка выделения памяти", err)
+				}
 			}
 			done <- true
 		}()
-		
+
 		if verbose {
 			log.Println("Инициализация соединения")
 		}
