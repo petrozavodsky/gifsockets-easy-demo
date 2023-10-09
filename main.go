@@ -137,7 +137,6 @@ func parseArgs(r *http.Request) map[string]string {
 func gifHandler(w http.ResponseWriter) {
 	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
 	seconds, err := strconv.Atoi(timeoutStr)
-
 	if err != nil {
 		panic("Ошибка при преобразовании строки в тип time.Duration")
 	}
@@ -154,12 +153,14 @@ func gifHandler(w http.ResponseWriter) {
 			return
 		}
 
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Content-Type", "image/gif")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(buffer.Bytes())*seconds+1))
-		_, err = w.Write(buffer.Bytes())
-		if err != nil {
-			return
+		if w != nil {
+			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("Content-Type", "image/gif")
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(buffer.Bytes())*seconds+1))
+			_, err = w.Write(buffer.Bytes())
+			if err != nil {
+				return
+			}
 		}
 
 		time.Sleep(delay * time.Millisecond)
