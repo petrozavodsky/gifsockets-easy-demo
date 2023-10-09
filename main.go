@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -30,26 +31,28 @@ func main() {
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("Возникла ошибка:", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}()
 
 	// Прочитать значение переменной типа bool
 	verbose, err := strconv.ParseBool(os.Getenv("VERBOSE"))
-
 	if err != nil {
-		log.Println("Ошибка чтения переменной VERBOSE")
-		return
+		panic("Ошибка чтения переменной VERBOSE")
 	}
 
 	if w == nil {
-		log.Println("Ошибка http.ResponseWriter")
-		return
+		panic("Ошибка http.ResponseWriter")
 	}
 
 	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
 	seconds, err := time.ParseDuration(timeoutStr + "s")
 
 	if err != nil {
-		log.Fatal("Ошибка при преобразовании строки в тип time.Duration:", err)
-		return
+		panic("Ошибка при преобразовании строки в тип time.Duration")
 	}
 	duration := time.Duration(seconds.Seconds()) * time.Second
 
@@ -91,17 +94,17 @@ func webPing(duration time.Duration, r *http.Request) {
 	}
 
 	timeStr := strconv.Itoa(int(duration.Seconds()))
-	url := os.Getenv("WEB_PING_URL")
-	url = strings.Replace(url, "{TIME}", timeStr, -1)
+	urlStr := os.Getenv("WEB_PING_URL")
+	urlStr = strings.Replace(urlStr, "{TIME}", timeStr, -1)
 	client := http.Client{Timeout: 5 * time.Second}
 	args := parseArgs(r)
 
 	if len(args) > 0 {
 		for key, value := range args {
-			url = strings.Replace(url, key, value, -1)
+			urlStr = strings.Replace(urlStr, key, url.QueryEscape(value), -1)
 		}
 	}
-	resp, err := client.Get(url)
+	resp, err := client.Get(urlStr)
 	if err != nil {
 		log.Println("Ошибка при выполнении запроса:", err)
 		return
@@ -112,7 +115,7 @@ func webPing(duration time.Duration, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		} else if verbose {
-			log.Println("Выполнен вебпинг - ", url)
+			log.Println("Выполнен вебпинг - ", urlStr)
 		}
 	}(resp.Body)
 }
@@ -144,6 +147,7 @@ func gifHandler(w http.ResponseWriter) {
 			return
 		}
 
+		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Content-Type", "image/gif")
 		_, err = w.Write(buffer.Bytes())
 		if err != nil {
