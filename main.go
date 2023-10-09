@@ -66,6 +66,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
+
+		defer func() {
+			if err := recover(); err != nil {
+				log.Println("Возникла ошибка в gifHandler:", err)
+			}
+			done <- true
+		}()
+		
 		if verbose {
 			log.Println("Инициализация соединения")
 		}
@@ -76,7 +84,11 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-done:
 		// Ответ клиенту
-		w.WriteHeader(http.StatusOK)
+		if w != nil {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			log.Println("Ошибка http.ResponseWriter: объект w равен nil")
+		}
 	case <-ctx.Done():
 		// Обработка разрыва соединения
 		duration := time.Since(start)
