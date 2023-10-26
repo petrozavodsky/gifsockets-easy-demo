@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"image"
 	"image/color"
 	"image/gif"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -67,19 +68,18 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	// Функция, которая будет выполняться в отдельной goroutine
 	go func() {
 		defer func() {
+			done <- true
 			if err := recover(); err != nil {
 				if verbose {
 					log.Println("Ошибка выделения памяти", err)
 				}
 			}
-			done <- true
 		}()
 
 		if verbose {
 			log.Println("Инициализация соединения")
 		}
 		gifHandler(w)
-		done <- true
 	}()
 
 	select {
@@ -107,7 +107,13 @@ func webPing(duration time.Duration, r *http.Request) {
 		return
 	}
 
-	timeStr := strconv.Itoa(int(duration.Seconds()))
+	seconds := int(duration.Seconds())
+	if seconds < 1 {
+		seconds = 1
+	}
+
+	timeStr := strconv.Itoa(seconds)
+
 	urlStr := os.Getenv("WEB_PING_URL")
 	urlStr = strings.Replace(urlStr, "{TIME}", timeStr, -1)
 	client := http.Client{Timeout: 5 * time.Second}
