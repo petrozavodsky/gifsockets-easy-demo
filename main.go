@@ -9,6 +9,7 @@ import (
 	"image/gif"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -79,15 +80,12 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 		if verbose {
 			log.Println("Инициализация соединения")
 		}
-		gifHandler(w)
+		gifHandler(w, ctx)
 	}()
 
 	select {
 	case <-done:
-		// Ответ клиенту
-		if w != nil {
-			w.WriteHeader(http.StatusOK)
-		} else {
+		if w == nil {
 			log.Println("Ошибка http.ResponseWriter: объект w равен nil")
 		}
 	case <-ctx.Done():
@@ -116,6 +114,14 @@ func webPing(duration time.Duration, r *http.Request) {
 
 	urlStr := os.Getenv("WEB_PING_URL")
 	urlStr = strings.Replace(urlStr, "{TIME}", timeStr, -1)
+	urlStr = strings.Replace(urlStr, "{userAgent}", url.QueryEscape(r.Header.Get("User-Agent")), -1)
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		urlStr = strings.Replace(urlStr, "{remoteAddr}", url.QueryEscape(ip), -1)
+	} else {
+		urlStr = strings.Replace(urlStr, "{remoteAddr}", "", -1)
+	}
+
 	client := http.Client{Timeout: 5 * time.Second}
 	args := parseArgs(r)
 
@@ -124,13 +130,15 @@ func webPing(duration time.Duration, r *http.Request) {
 			urlStr = strings.Replace(urlStr, key, url.QueryEscape(value), -1)
 		}
 	}
+
+	fmt.Println(urlStr)
+
 	resp, err := client.Get(urlStr)
 	if err != nil {
 		log.Println("Ошибка при выполнении запроса:", err)
 		return
 	}
 	defer func(Body io.ReadCloser) {
-
 		err := Body.Close()
 		if err != nil {
 			log.Fatal(err)
@@ -153,7 +161,7 @@ func parseArgs(r *http.Request) map[string]string {
 	return args
 }
 
-func gifHandler(w http.ResponseWriter) {
+func gifHandler(w http.ResponseWriter, ctx context.Context) {
 	timeoutStr := os.Getenv("TIMEOUT_SECONDS")
 	seconds, err := strconv.Atoi(timeoutStr)
 	if err != nil {
@@ -162,27 +170,33 @@ func gifHandler(w http.ResponseWriter) {
 
 	const delay = 1000 // Задержка между кадрами в миллисекундах
 	for {
-		img := createFrame()
-
-		buffer := new(bytes.Buffer)
-		err := gif.Encode(buffer, img, nil)
-
-		if err != nil {
-			log.Fatal(err)
+		select {
+		case <-ctx.Done(): // Проверяем состояние контекста
 			return
-		}
+		default:
+			img := createFrame()
 
-		if w != nil {
-			w.Header().Set("Connection", "keep-alive")
-			w.Header().Set("Content-Type", "image/gif")
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(buffer.Bytes())*seconds+1))
-			_, err = w.Write(buffer.Bytes())
+			buffer := new(bytes.Buffer)
+			err := gif.Encode(buffer, img, nil)
+
 			if err != nil {
+				log.Fatal(err)
 				return
 			}
+
+			if w != nil {
+				w.Header().Set("Connection", "keep-alive")
+				w.Header().Set("Content-Type", "image/gif")
+				w.Header().Set("Content-Length", fmt.Sprintf("%d", len(buffer.Bytes())*seconds+1))
+				_, err = w.Write(buffer.Bytes())
+				if err != nil {
+					return
+				}
+			}
+
+			time.Sleep(delay * time.Millisecond)
 		}
 
-		time.Sleep(delay * time.Millisecond)
 	}
 }
 
